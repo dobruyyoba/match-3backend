@@ -1,10 +1,9 @@
-[gd_scene load_steps=6 format=3 uid="uid://dcsopoehyhc68"]
+[gd_scene load_steps=5 format=3 uid="uid://dcsopoehyhc68"]
 
 [ext_resource type="Script" uid="uid://ci25dhca35mre" path="res://node_2d.gd" id="1_wtcfe"]
 [ext_resource type="Script" uid="uid://j8twe1aa7r7w" path="res://1.gd" id="2_0e48y"]
 [ext_resource type="Texture2D" uid="uid://dvhttik30byp" path="res://cosmo-art/Adobe Express - file (2).png" id="3_0hol4"]
 [ext_resource type="Texture2D" uid="uid://d3xouyyqg5pmo" path="res://cosmo-art/Frame 13.png" id="3_epypp"]
-[ext_resource type="Texture2D" uid="uid://b7roeimgdgfep" path="res://cosmo-art/unnamed.jpg" id="5_q6r6c"]
 
 [node name="Node2D" type="Node2D"]
 script = ExtResource("1_wtcfe")
@@ -32,7 +31,3 @@ offset_bottom = 23.0
 [node name="Label2" type="Label" parent="."]
 offset_right = 40.0
 offset_bottom = 23.0
-
-[node name="Sprite2D3" type="Sprite2D" parent="."]
-texture = ExtResource("5_q6r6c")
-offset = Vector2(540, 1200)

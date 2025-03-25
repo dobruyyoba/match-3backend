@@ -6,6 +6,11 @@ extends Node2D
 @export var y_start: int
 @export var offset: int
 
+@onready var label_target = $Label
+@onready var label_swaps = $Label2
+@onready var game_over_sprite = $Sprite2D3
+
+
 var possible_pieces = [
     preload("res://cosmo-art/figure-1.tscn"),
     preload("res://cosmo-art/figure-2.tscn"),
@@ -20,6 +25,11 @@ var is_swapping = false
 var time_fall = 0.5
 var scale_param = Vector2(2.0, 2.0)
 var flag = true
+var target_score = 20
+var target_peaces = []
+var possible_swaps = 10
+var target_rand
+
 
 
 func _draw():
@@ -28,7 +38,19 @@ func _draw():
     var pos2 = Vector2(x_start, y_start + offset * height)
     draw_line(pos1, pos2, color)
 
+func _process(delta: float) -> void:
+    label_target.text = str(target_score)
+    label_target.scale = Vector2(6,6)
+    label_target.position = Vector2(340, 420)
+    label_swaps.text = str(possible_swaps)
+    label_swaps.scale = Vector2(6,6)
+    label_swaps.position = Vector2(840, 420)
+    if not possible_swaps:
+        game_over_sprite.z_index = 100
+        game_over_sprite.visible = true
 func _input(event):
+    if not possible_swaps:
+        return
     if is_swapping:
         return
     if event is InputEventMouseButton and event.pressed:
@@ -42,8 +64,18 @@ func _input(event):
             if target_piece != null:
                 swap_pieces(selected_piece, target_piece)
             selected_piece = null
+    label_target.text = str(target_score)
+    label_target.scale = Vector2(6,6)
+    label_target.position = Vector2(340, 420)
+    label_swaps.text = str(possible_swaps)
+    label_swaps.scale = Vector2(6,6)
+    label_swaps.position = Vector2(840, 420)
+            
+func update_swaps_label():
+    label_swaps.text = str(possible_swaps)
 
 func _ready() -> void:
+    game_over_sprite.visible = false
     all_pieces = make_2d_array()
     for piece in possible_pieces:
         print(piece)
@@ -54,6 +86,7 @@ func _ready() -> void:
     while (is_matches()):
         clear_field()
         spawn_pieces()
+    spawn_target_peaces()
 
 func make_2d_array():
     var array = []
@@ -69,7 +102,15 @@ func clear_field():
             all_pieces[i][j].queue_free()
             all_pieces[i][j] = null
             
-
+func spawn_target_peaces():
+    target_rand = floor(randi_range(0, possible_pieces.size() - 1))
+    var piece = possible_pieces[target_rand].instantiate()
+    var sprite = piece.get_node("Sprite2D")
+    sprite.scale = scale_param
+    piece.type = target_rand
+    add_child(piece)
+    piece.position = Vector2(200, 500)
+    
 func spawn_pieces():
     for i in width:
         for j in height:
@@ -133,8 +174,9 @@ func collapse_columns():
         for j in range(temp_array.size()):
             var piece = temp_array[j]
             var target_y = height - temp_array.size() + j # Вычисляем новую позицию по вертикали
-            var target_position = grid_to_pixel(i, target_y) # Преобразуем в пиксельные координаты
-            tweens.append(piece_fall(piece, target_position, time_fall))
+            var target_position = grid_to_pixel(i, target_y)
+            if piece.position != target_position: # Преобразуем в пиксельные координаты
+                tweens.append(piece_fall(piece, target_position, time_fall))
             all_pieces[i][target_y] = piece
             all_pieces[i][target_y].type = piece.type
             piece.grid_y = target_y # Обновляем grid_y
@@ -162,16 +204,17 @@ func fill_empty_cells():
                 tweens.append(piece_fall(new_piece, grid_to_pixel(i, j), time_fall))
     return tweens
 
-func piece_fall(cell_node, target_position: Vector2, time_fall):
+func piece_fall(cell_node, target_position: Vector2, time_fall, bounce_height: float = 1.2):
+    var target_position1 = target_position - Vector2(0, 100)
     var tween = cell_node.create_tween()
-    var curve = Curve.new()
-    curve.add_point(Vector2(0, 0))
-    curve.add_point(Vector2(0.7, 1.2)) # Настройка для отскока
-    curve.add_point(Vector2(1, 1))
-
-    var curve_tween = tween.tween_property(cell_node, "position", target_position, time_fall)
-    curve_tween.set_ease(Tween.EASE_OUT)
-    curve_tween.set_trans(Tween.TRANS_BOUNCE)
+    tween.tween_property(cell_node, "position", target_position, time_fall * 0.33).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_LINEAR)
+    tween.tween_property(cell_node, "position", target_position1, time_fall * 0.08).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_LINEAR)
+    tween.tween_property(cell_node, "position", target_position, time_fall * 0.08).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_LINEAR)
+    tween.tween_property(cell_node, "position", target_position - Vector2(0, 25), time_fall * 0.05).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_LINEAR)
+    tween.tween_property(cell_node, "position", target_position, time_fall * 0.05).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_LINEAR)
+    tween.tween_property(cell_node, "position", target_position - Vector2(0, 12.5), time_fall * 0.025).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_LINEAR)
+    tween.tween_property(cell_node, "position", target_position, time_fall * 0.025).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_LINEAR)
+    #tween.tween_property(cell_node, "position", target_position, time_fall * 0.2).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BOUNCE)
     return tween
 
                     
@@ -182,6 +225,8 @@ func delete_matches():
                 var sprite = all_pieces[i][j].get_node("Sprite2D")
                 if (sprite.modulate == Color(0.5, 0.5, 0.5)):
                     print(i,j)
+                    if (all_pieces[i][j].type == target_rand):
+                        target_score -= 1
                     all_pieces[i][j].queue_free()
                     all_pieces[i][j] = null
 
@@ -232,7 +277,7 @@ func swap_pieces(piece1, piece2):
         for j in height:
             if (all_pieces[i][j] != null):
                 print("print4", all_pieces[i][j].position, all_pieces[i][j].type, i, j)
-        
+    possible_swaps -= 1
     is_swapping = false
 
 func get_piece_at_position(position):
