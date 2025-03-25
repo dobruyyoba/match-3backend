@@ -17,9 +17,16 @@ var figure_count = 3
 var touch_start_pos = Vector2.ZERO
 var selected_piece = null
 var is_swapping = false
-var time_fall = 1.0
+var time_fall = 0.5
 var scale_param = Vector2(2.0, 2.0)
-var flag = false
+var flag = true
+
+
+func _draw():
+    var color = Color(1.0, 0.0, 0.0) # Красный цвет
+    var pos1 = Vector2(x_start,y_start)
+    var pos2 = Vector2(x_start, y_start + offset * height)
+    draw_line(pos1, pos2, color)
 
 func _input(event):
     if is_swapping:
@@ -115,6 +122,7 @@ func is_matches():
                     return true
                         
 func collapse_columns():
+    var tweens = []
     for i in width:
         var temp_array = []
         for j in height:
@@ -126,7 +134,7 @@ func collapse_columns():
             var piece = temp_array[j]
             var target_y = height - temp_array.size() + j # Вычисляем новую позицию по вертикали
             var target_position = grid_to_pixel(i, target_y) # Преобразуем в пиксельные координаты
-            piece_fall(piece, target_position, time_fall)
+            tweens.append(piece_fall(piece, target_position, time_fall))
             all_pieces[i][target_y] = piece
             all_pieces[i][target_y].type = piece.type
             piece.grid_y = target_y # Обновляем grid_y
@@ -134,8 +142,10 @@ func collapse_columns():
         # Заполняем оставшиеся ячейки null
         for j in range(height - temp_array.size()):
             all_pieces[i][j] = null
+    return tweens
 
 func fill_empty_cells():
+    var tweens = []
     for i in width:
         for j in height:
             if all_pieces[i][j] == null:
@@ -149,13 +159,11 @@ func fill_empty_cells():
                 all_pieces[i][j] = new_piece
                 all_pieces[i][j].type = rand
                 var time_fall = 2.0
-                if (j == 0):
-                    piece_fall(new_piece, grid_to_pixel(i, j), time_fall)
-                else:
-                    piece_fall(new_piece, grid_to_pixel(i, j), time_fall)
+                tweens.append(piece_fall(new_piece, grid_to_pixel(i, j), time_fall))
+    return tweens
 
 func piece_fall(cell_node, target_position: Vector2, time_fall):
-    var tween = create_tween()
+    var tween = cell_node.create_tween()
     var curve = Curve.new()
     curve.add_point(Vector2(0, 0))
     curve.add_point(Vector2(0.7, 1.2)) # Настройка для отскока
@@ -164,6 +172,7 @@ func piece_fall(cell_node, target_position: Vector2, time_fall):
     var curve_tween = tween.tween_property(cell_node, "position", target_position, time_fall)
     curve_tween.set_ease(Tween.EASE_OUT)
     curve_tween.set_trans(Tween.TRANS_BOUNCE)
+    return tween
 
                     
 func delete_matches():
@@ -208,29 +217,21 @@ func swap_pieces(piece1, piece2):
     # Обновляем массив all_pieces
     all_pieces[piece1.grid_x][piece1.grid_y] = piece1
     all_pieces[piece2.grid_x][piece2.grid_y] = piece2
-    find_matches()
-    delete_matches()
-    collapse_columns()
     while (is_matches()):
-        find_matches()
-        delete_matches()
-        collapse_columns()
-    fill_empty_cells()
-    await get_tree().create_timer(time_fall).timeout
-    while (is_matches()):
-        find_matches()
-        delete_matches()
-        collapse_columns()
+        var tweens = []
         while (is_matches()):
             find_matches()
             delete_matches()
-            collapse_columns()
-        fill_empty_cells()
-        await get_tree().create_timer(time_fall).timeout
-        pass
+            tweens = collapse_columns()
+            for tween in tweens:
+                await tween.finished
+        tweens = fill_empty_cells()
+        for tween in tweens:
+            await tween.finished
     for i in width:
         for j in height:
-            print(all_pieces[i][j])
+            if (all_pieces[i][j] != null):
+                print("print4", all_pieces[i][j].position, all_pieces[i][j].type, i, j)
         
     is_swapping = false
 
